@@ -265,10 +265,10 @@ class ProofContext():
 
         return final_repr.strip("\n")
 
-    def generate_graphviz(self, filename: str, comment: str = ""):
+    def generate_graphviz(self, filename: str, comment: str = "", view: str = True):
         dot = self.generate_dots_graphviz(comment = comment)
         dot = self.fill_edges_graphviz(dot)
-        dot.render(f"{filename}", view=True)
+        dot.render(f"{filename}", view = view)
 
     def generate_dots_graphviz(self, dot = None, comment: str = ""):
         import graphviz  # optional dep
