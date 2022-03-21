@@ -36,109 +36,127 @@ class Atomic(Formula):
             return self.fresh_name
 
 class Not(Formula):
-    child: Formula
+    c: Formula  # c for child
 
     def __repr__(self):
-        return f"(not {repr(self.child)})"
+        return f"(not {repr(self.c)})"
 
 class And(Formula):
-    left: Formula
-    right: Formula
+    l: Formula
+    r: Formula
 
     def __repr__(self):
-        return f"({repr(self.left)} and {repr(self.right)})"
+        return f"({repr(self.l)} and {repr(self.r)})"
 
 class Or(Formula):
-    left: Formula
-    right: Formula
+    l: Formula
+    r: Formula
 
     def __repr__(self):
-        return f"({repr(self.left)} or {repr(self.right)})"
+        return f"({repr(self.l)} or {repr(self.r)})"
 
-class Then(Formula):
-    left: Formula
-    right: Formula
+class Implies(Formula):
+    l: Formula
+    r: Formula
 
     def __repr__(self):
-        return f"({repr(self.left)} -> {repr(self.right)})"
+        return f"({repr(self.l)} -> {repr(self.r)})"
 
 """
 Non-branching rules
 """
 
 # TODO: implement rule combinators to make it easier to write new deduction rules
-def not_reduce(ctx: ProofContext) -> List[ProofContext]:
-    left = ctx.left()
-    right = ctx.right()
+def not_reduce_l(ctx: ProofContext) -> List[ProofContext]:
+    l = ctx.l()
+    r = ctx.r()
 
-    new_left = set()
-    new_right = set()
+    new_r = set()
 
-    for statement in left:
-        if isinstance(statement, Not) and statement.child not in right:
-            new_right.add(statement.child)
+    for statement in l:
+        if isinstance(statement, Not) and not ctx.is_reduced(statement):
+            new_r.add(statement.c)
+            ctx.marked_reduced.add(statement)
 
-    for statement in right:
-        if isinstance(statement, Not) and statement.child not in left:
-            new_left.add(statement.child)
-
-    if new_right or new_right:
-        return [ProofContext(new_left, new_right, parent=ctx)]
+    if new_r:
+        return [ProofContext(set(), new_r, parent=ctx)]
 
     return []
 
-def and_reduce_left(ctx: ProofContext) -> Optional[ProofContext]:
-    left = ctx.left()
-    right = ctx.right()
+def not_reduce_r(ctx: ProofContext) -> List[ProofContext]:
+    l = ctx.l()
+    r = ctx.r()
 
-    new_left = set()
-    for statement in left:
-        if isinstance(statement, And):
-            if statement.left not in left:
-                new_left.add(statement.left)
+    new_l = set()
 
-            if statement.right not in left:
-                new_left.add(statement.right)
+    for statement in r:
+        if isinstance(statement, Not) and not ctx.is_reduced(statement):
+            new_l.add(statement.c)
+            ctx.marked_reduced.add(statement)
 
-    if new_left:
-        return [ProofContext(new_left, set(), parent=ctx)]
+    if new_l:
+        return [ProofContext(new_l, set(), parent=ctx)]
 
     return []
 
-def or_reduce_right(ctx: ProofContext) -> Optional[ProofContext]:
-    left = ctx.left()
-    right = ctx.right()
+def and_reduce_l(ctx: ProofContext) -> Optional[ProofContext]:
+    l = ctx.l()
+    r = ctx.r()
 
-    new_right = set()
-    for statement in right:
-        if isinstance(statement, Or):
-            if statement.left not in right:
-                new_right.add(statement.left)
+    new_l = set()
+    for statement in l:
+        if isinstance(statement, And) and not ctx.is_reduced(statement):
+            if statement.l not in l:
+                new_l.add(statement.l)
 
-            if statement.right not in right:
-                new_right.add(statement.right)
+            if statement.r not in l:
+                new_l.add(statement.r)
 
-    if new_right:
-        return [ProofContext(set(), new_right, parent=ctx)]
+            ctx.marked_reduced.add(statement)
+
+    if new_l:
+        return [ProofContext(new_l, set(), parent=ctx)]
 
     return []
 
-def then_reduce_right(ctx: ProofContext) -> Optional[ProofContext]:
-    left = ctx.left()
-    right = ctx.right()
+def or_reduce_r(ctx: ProofContext) -> Optional[ProofContext]:
+    l = ctx.l()
+    r = ctx.r()
 
-    new_left = set()
-    new_right = set()
-    for statement in right:
-        if isinstance(statement, Then):
-            if statement.left not in left:
-                new_left.add(statement.left)
+    new_r = set()
+    for statement in r:
+        if isinstance(statement, Or) and not ctx.is_reduced(statement):
+            if statement.l not in r:
+                new_r.add(statement.l)
 
-            if statement.right not in right:
-                new_right.add(statement.right)
+            if statement.r not in r:
+                new_r.add(statement.r)
 
-    if new_right:
-        return [ProofContext(new_left, new_right, parent=ctx)]
+            ctx.marked_reduced.add(statement)
+
+    if new_r:
+        return [ProofContext(set(), new_r, parent=ctx)]
+
+    return []
+
+def implies_reduce_r(ctx: ProofContext) -> Optional[ProofContext]:
+    l = ctx.l()
+    r = ctx.r()
+
+    new_l = set()
+    new_r = set()
+    for statement in r:
+        if isinstance(statement, Implies) and not ctx.is_reduced(statement):
+            if statement.l not in l:
+                new_l.add(statement.l)
+
+            if statement.r not in r:
+                new_r.add(statement.r)
+
+            ctx.marked_reduced.add(statement)
+
+    if new_r:
+        return [ProofContext(new_l, new_r, parent=ctx)]
 
     return []
 
@@ -146,64 +164,47 @@ def then_reduce_right(ctx: ProofContext) -> Optional[ProofContext]:
 Branchers
 """
 
-def or_reduce_left(ctx: ProofContext) -> Optional[ProofContext]:
-    left = ctx.left()
+def or_reduce_l(ctx: ProofContext) -> Optional[ProofContext]:
+    l = ctx.l()
 
-    new_ctx = []
-    for statement in left:
-        if isinstance(statement, Or):
-            if not (statement.left in left and statement.right in left):
-            # if statement.left not in left:
-                new_ctx.append(ProofContext({statement.left}, set(), parent=ctx))
-
-            # if statement.right not in left:
-                new_ctx.append(ProofContext({statement.right}, set(), parent=ctx))
-
-            if new_ctx:
-                return new_ctx
+    for statement in l:
+        if isinstance(statement, Or) and not ctx.is_reduced(statement):
+            new_ctx = []
+            new_ctx.append(ProofContext({statement.l}, set(), parent=ctx))
+            new_ctx.append(ProofContext({statement.r}, set(), parent=ctx))
+            ctx.marked_reduced.add(statement)
+            return new_ctx
     return []
 
 
-def and_reduce_right(ctx: ProofContext) -> Optional[ProofContext]:
-    left = ctx.left()
-    right = ctx.right()
+def and_reduce_r(ctx: ProofContext) -> Optional[ProofContext]:
+    r = ctx.r()
 
-    new_ctx = []
-    for statement in right:
-        if isinstance(statement, And):
-            if not (statement.left in right and statement.right in right):
-            # if statement.left not in right:
-                new_ctx.append(ProofContext(set(), {statement.left}, parent=ctx))
-
-            # if statement.right not in right:
-                new_ctx.append(ProofContext(set(), {statement.right}, parent=ctx))
-
-            if new_ctx:
-                return new_ctx
+    for statement in r:
+        if isinstance(statement, And) and not ctx.is_reduced(statement):
+            new_ctx = []
+            new_ctx.append(ProofContext(set(), {statement.l}, parent=ctx))
+            new_ctx.append(ProofContext(set(), {statement.r}, parent=ctx))
+            ctx.marked_reduced.add(statement)
+            return new_ctx
     return []
 
-def then_reduce_left(ctx: ProofContext) -> Optional[ProofContext]:
-    left = ctx.left()
-    right = ctx.left()
+def implies_reduce_l(ctx: ProofContext) -> Optional[ProofContext]:
+    l = ctx.l()
 
-    new_ctx = []
-    for statement in left:
-        if isinstance(statement, Or):
-            if not (statement.left in right and statement.right not in left):
-            # if statement.left not in right:
-                new_ctx.append(ProofContext(set(), {statement.left}, parent=ctx))
-
-            # if statement.right not in left:
-                new_ctx.append(ProofContext({statement.right}, set(), parent=ctx))
-
-            if new_ctx:
-                return new_ctx
+    for statement in l:
+        if isinstance(statement, Implies) and not ctx.is_reduced(statement):
+            new_ctx = []
+            new_ctx.append(ProofContext(set(), {statement.l}, parent=ctx))
+            new_ctx.append(ProofContext({statement.r}, set(), parent=ctx))
+            ctx.marked_reduced.add(statement)
+            return new_ctx
     return []
 
 # hueristically ordered by priority
 REDUCTION_RULES = [
-    not_reduce, and_reduce_left, or_reduce_right, then_reduce_right, # non-branching
-    and_reduce_right  # branching
+    not_reduce_l, not_reduce_r, and_reduce_l, or_reduce_r, implies_reduce_r, # non-branching
+    and_reduce_r, implies_reduce_l, or_reduce_l # branching
 ]
 
 class ProofContext():
@@ -212,42 +213,49 @@ class ProofContext():
     For now: sentential logic only
     """
     def __init__(self,
-                 new_left: Set[Formula],
-                 new_right: Set[Formula],
-                 parent: Optional[ProofContext] = None
+                 new_l: Set[Formula],
+                 new_r: Set[Formula],
+                 parent: Optional[ProofContext] = None,
                  ):
+        if parent is None:
+            self.depth = 0
+        else:
+            self.depth = parent.depth + 1
+
         self.parent = parent
-        self.new_left = new_left
-        self.new_right = new_right
+        self.new_l = new_l
+        self.new_r = new_r
+
         self.children = []
         self.closed = False
         self.uuid = secrets.token_hex(4)
+        self.marked_reduced = set()
 
     def __repr__(self):
         try:
-            max_left = max([len(x) for x in self.new_left])
+            max_l = max([len(x) for x in self.new_l])
         except ValueError:
-            max_left = 0
+            max_l = 0
 
         try:
-            max_right = max([len(x) for x in self.new_right])
+            max_r = max([len(x) for x in self.new_r])
         except ValueError:
-            max_right = 0
+            max_r = 0
 
-        max_length = max(max_left, max_right)
+        max_length = max(max_l, max_r)
 
-        left_reprs = [repr(x).ljust(max_length) for x in self.new_left]
-        right_reprs = [repr(x).rjust(max_length) for x in self.new_right]
+        l_reprs = [repr(x).ljust(max_length) for x in self.new_l]
+        r_reprs = [repr(x).rjust(max_length) for x in self.new_r]
 
-        while len(left_reprs) != len(right_reprs):
-            if len(left_reprs) < len(right_reprs):
-                left_reprs.append(" " * max_length)
-            elif len(left_reprs) > len(right_reprs):
-                right_reprs.append(" " * max_length)
+        while len(l_reprs) != len(r_reprs):
+            if len(l_reprs) < len(r_reprs):
+                l_reprs.append(" " * max_length)
+            elif len(l_reprs) > len(r_reprs):
+                r_reprs.append(" " * max_length)
 
         final_repr = ""
-        for left, right in zip(left_reprs, right_reprs):
-            final_repr += f"{left} | {right}\n"
+        for l, r in zip(l_reprs, r_reprs):
+            final_repr += f"{l} | {r}\n"
 
         if len(self.children) == 0:
             if self.closed:
@@ -257,52 +265,56 @@ class ProofContext():
 
         return final_repr.strip("\n")
 
-    def generate_graphviz(self):
-        dot = self.generate_dots_graphviz()
+    def generate_graphviz(self, filename: str, comment: str = ""):
+        dot = self.generate_dots_graphviz(comment = comment)
         dot = self.fill_edges_graphviz(dot)
+        dot.render(f"{filename}", view=True)
 
-        print(dot.source)
-
-        # doctest_mark_exe()
-        dot.render('two-sided-tree.gv', view=True)
-
-    def generate_dots_graphviz(self, dot = None):
+    def generate_dots_graphviz(self, dot = None, comment: str = ""):
         import graphviz  # optional dep
-
         if not dot:
-            dot = graphviz.Digraph(comment='Two-Sided Tree')
+            dot = graphviz.Digraph(comment=comment)
+            dot.attr(fontname="Courier")
 
         dot.node(self.uuid, repr(self))
-        for child in self.children:
-            dot = child.generate_dots_graphviz(dot)
+        for c in self.children:
+            dot = c.generate_dots_graphviz(dot)
 
         return dot
 
     def fill_edges_graphviz(self, dot):
         import graphviz  # optional dep
-        for child in self.children:
-            dot.edge(self.uuid, child.uuid)
+        for c in self.children:
+            dot.edge(self.uuid, c.uuid)
 
-        for child in self.children:
-            dot = child.fill_edges_graphviz(dot)
+        for c in self.children:
+            dot = c.fill_edges_graphviz(dot)
 
         return dot
 
-    def left(self):
+    def reduced_formula(self):
         if self.parent:
-            return self.parent.left().union(self.new_left)
-        return self.new_left
+            return self.parent.reduced_formula().union(self.marked_reduced)
+        return self.marked_reduced
 
-    def right(self):
+    def is_reduced(self, item: Formula):
+        return item in self.reduced_formula()
+
+    def l(self):
         if self.parent:
-            return self.parent.right().union(self.new_right)
-        return self.new_right
+            return self.parent.l().union(self.new_l)
+        return self.new_l
+
+    def r(self):
+        if self.parent:
+            return self.parent.r().union(self.new_r)
+        return self.new_r
 
     def solve(self, rules = REDUCTION_RULES, recursive: bool = True): # TODO: add type, check
         """
         Recursively apply the rules until computation finishes
         """
-        print(self.left(), self.right())
+        print(self.l(), self.r())
         if self.contradiction_found():  # in this case, our work is done and we short-cut
             self.closed = True
 
@@ -313,19 +325,18 @@ class ProofContext():
                     self.children = children
                     break
 
-            if recursive:
-                for child in children:
-                    child.solve()
+            if recursive and self.depth <= 5:
+                for c in children:
+                    print(self.depth)
+                    # breakpoint()
+                    c.solve()
 
             if len(children) == 0 and self.contradiction_found():
                 self.closed = True
-            elif len(children) != 0 and all([child.closed for child in children]):
+            elif len(children) != 0 and all([c.closed for c in children]):
                 self.closed = True
 
         return self.closed
 
     def contradiction_found(self):
-        """
-        """
-        return len(self.left().intersection(self.right())) > 0
-
+        return len(self.l().intersection(self.r())) > 0

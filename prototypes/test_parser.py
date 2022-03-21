@@ -1,13 +1,13 @@
 #!/usr/bin/env python
 
-from parser import ProofContext, Formula, Atomic, And, Or, Not, Then
+from parser import ProofContext, Formula, Atomic, And, Or, Not, Implies
 
 def test_formula_constructions():
     assert isinstance(Atomic(), Formula)
-    assert isinstance(Not(child = Atomic()), Formula)
-    assert isinstance(And(left = Atomic(), right = Atomic()), Formula)
-    assert isinstance(Or(left = Atomic(), right = Atomic()), Formula)
-    assert isinstance(Then(left = Atomic(), right = Atomic()), Formula)
+    assert isinstance(Not(c = Atomic()), Formula)
+    assert isinstance(And(l = Atomic(), r = Atomic()), Formula)
+    assert isinstance(Or(l = Atomic(), r = Atomic()), Formula)
+    assert isinstance(Implies(l = Atomic(), r = Atomic()), Formula)
 
 def test_proof_context_init():
     x = Atomic()
@@ -34,8 +34,8 @@ def test_proof_identity_taut_not():
     Proof that (not x) |- (not x).
     """
     atom = Atomic()
-    x = Not(child=atom)
-    y = Not(child=atom)
+    x = Not(c=atom)
+    y = Not(c=atom)
 
     ctx = ProofContext({x}, {y})
     assert ctx.closed == False
@@ -48,7 +48,7 @@ def test_conjunction_elim_taut_1():
     """
     p = Atomic()
     q = Atomic()
-    ctx = ProofContext({And(left=p, right=q)}, {p})
+    ctx = ProofContext({And(l=p, r=q)}, {p})
     assert ctx.closed == False
     ctx.solve()
     assert ctx.closed == True
@@ -59,7 +59,7 @@ def test_conjunction_elim_taut_2():
     """
     p = Atomic()
     q = Atomic()
-    ctx = ProofContext({And(left=p, right=q)}, {q})
+    ctx = ProofContext({And(l=p, r=q)}, {q})
     assert ctx.closed == False
     ctx.solve()
     assert ctx.closed == True
@@ -70,7 +70,7 @@ def test_disjunction_elim_taut_1():
     """
     p = Atomic()
     q = Atomic()
-    ctx = ProofContext({p}, {Or(left=p, right=q)})
+    ctx = ProofContext({p}, {Or(l=p, r=q)})
     assert ctx.closed == False
     ctx.solve()
     assert ctx.closed == True
@@ -81,7 +81,7 @@ def test_disjunction_elim_taut_2():
     """
     p = Atomic()
     q = Atomic()
-    ctx = ProofContext({q}, {Or(left=p, right=q)})
+    ctx = ProofContext({q}, {Or(l=p, r=q)})
     assert ctx.closed == False
     ctx.solve()
     assert ctx.closed == True
@@ -92,7 +92,7 @@ def test_or_disjunction_elim_multi():
     """
     p = Atomic()
     q = Atomic()
-    ctx = ProofContext({p, q}, {Or(left=p, right=q)})
+    ctx = ProofContext({p, q}, {Or(l=p, r=q)})
     assert ctx.closed == False
     ctx.solve()
     assert ctx.closed == True
@@ -103,7 +103,7 @@ def test_conditional_taut_1():
     """
     p = Atomic()
     q = Atomic()
-    ctx = ProofContext({q}, {Then(left=p, right=q)})
+    ctx = ProofContext({q}, {Implies(l=p, r=q)})
     assert ctx.closed == False
     ctx.solve()
     assert ctx.closed == True
@@ -114,7 +114,7 @@ def test_conditional_taut_2_complex():
     """
     p = Atomic()
     q = Atomic()
-    ctx = ProofContext({Not(child=p)}, {Then(left=p, right=q)})
+    ctx = ProofContext({Not(c=p)}, {Implies(l=p, r=q)})
     assert ctx.closed == False
     ctx.solve()
     assert ctx.closed == True
@@ -126,10 +126,10 @@ def test_negated_conditional_taut():
     p = Atomic()
     q = Atomic()
     ctx = ProofContext(
-        {Not(child=
-                Then(left=p, right=q)
+        {Not(c=
+                Implies(l=p, r=q)
              )},
-        {And(left=p, right=Not(child=q))}
+        {And(l=p, r=Not(c=q))}
     )
     assert ctx.closed == False
     ctx.solve()
@@ -144,8 +144,8 @@ def test_proof_identity_impossible():
     """
     Proof that this is an open tree (not x) |- (not y).
     """
-    x = Not(child=Atomic())
-    y = Not(child=Atomic())
+    x = Not(c=Atomic())
+    y = Not(c=Atomic())
 
     ctx = ProofContext({x}, {y})
     assert ctx.closed == False
@@ -158,7 +158,7 @@ def test_conjunction_elim_impossible():
     """
     p = Atomic()
     q = Atomic()
-    ctx = ProofContext({And(left=p, right=q)}, {Atomic()})
+    ctx = ProofContext({And(l=p, r=q)}, {Atomic()})
     assert ctx.closed == False
     ctx.solve()
     assert ctx.closed == False
