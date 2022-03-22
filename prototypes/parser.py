@@ -7,60 +7,7 @@ from pydantic import BaseModel
 from typing import Optional, List, Set
 import secrets
 
-# Logical primitives
-class Formula(BaseModel):
-    def __hash__(self):
-        return hash(repr(self))
-
-    def __eq__(self, other):
-        return repr(self) == repr(other)
-
-    def __len__(self):
-        return len(repr(self))
-
-# @dataclass
-class Atomic(Formula):
-    name: Optional[str]
-    value: Optional[bool]  # defaults to unknown
-
-    # if no name is given, default to generating a fresh one
-    fresh_name: Optional[str]
-
-    def __repr__(self):
-        if self.name:
-            return self.name
-        elif self.fresh_name:
-            return self.fresh_name
-        else:
-            self.fresh_name = secrets.token_hex(4)
-            return self.fresh_name
-
-class Not(Formula):
-    c: Formula  # c for child
-
-    def __repr__(self):
-        return f"(not {repr(self.c)})"
-
-class And(Formula):
-    l: Formula
-    r: Formula
-
-    def __repr__(self):
-        return f"({repr(self.l)} and {repr(self.r)})"
-
-class Or(Formula):
-    l: Formula
-    r: Formula
-
-    def __repr__(self):
-        return f"({repr(self.l)} or {repr(self.r)})"
-
-class Implies(Formula):
-    l: Formula
-    r: Formula
-
-    def __repr__(self):
-        return f"({repr(self.l)} -> {repr(self.r)})"
+from primitives import *
 
 """
 Non-branching rules
@@ -99,7 +46,7 @@ def not_reduce_r(ctx: ProofContext) -> List[ProofContext]:
 
     return []
 
-def and_reduce_l(ctx: ProofContext) -> Optional[ProofContext]:
+def and_reduce_l(ctx: ProofContext) -> List[ProofContext]:
     l = ctx.l()
     r = ctx.r()
 
@@ -119,7 +66,7 @@ def and_reduce_l(ctx: ProofContext) -> Optional[ProofContext]:
 
     return []
 
-def or_reduce_r(ctx: ProofContext) -> Optional[ProofContext]:
+def or_reduce_r(ctx: ProofContext) -> List[ProofContext]:
     l = ctx.l()
     r = ctx.r()
 
@@ -139,7 +86,7 @@ def or_reduce_r(ctx: ProofContext) -> Optional[ProofContext]:
 
     return []
 
-def implies_reduce_r(ctx: ProofContext) -> Optional[ProofContext]:
+def implies_reduce_r(ctx: ProofContext) -> List[ProofContext]:
     l = ctx.l()
     r = ctx.r()
 
@@ -164,7 +111,7 @@ def implies_reduce_r(ctx: ProofContext) -> Optional[ProofContext]:
 Branchers
 """
 
-def or_reduce_l(ctx: ProofContext) -> Optional[ProofContext]:
+def or_reduce_l(ctx: ProofContext) -> List[ProofContext]:
     l = ctx.l()
 
     for statement in l:
@@ -177,7 +124,7 @@ def or_reduce_l(ctx: ProofContext) -> Optional[ProofContext]:
     return []
 
 
-def and_reduce_r(ctx: ProofContext) -> Optional[ProofContext]:
+def and_reduce_r(ctx: ProofContext) -> List[ProofContext]:
     r = ctx.r()
 
     for statement in r:
@@ -189,7 +136,7 @@ def and_reduce_r(ctx: ProofContext) -> Optional[ProofContext]:
             return new_ctx
     return []
 
-def implies_reduce_l(ctx: ProofContext) -> Optional[ProofContext]:
+def implies_reduce_l(ctx: ProofContext) -> List[ProofContext]:
     l = ctx.l()
 
     for statement in l:
@@ -226,10 +173,10 @@ class ProofContext():
         self.new_l = new_l
         self.new_r = new_r
 
-        self.children = []
+        self.children: List[ProofContext] = []
         self.closed = False
         self.uuid = secrets.token_hex(4)
-        self.marked_reduced = set()
+        self.marked_reduced: Set[Formula] = set()
 
     def __repr__(self):
         try:
@@ -265,7 +212,7 @@ class ProofContext():
 
         return final_repr.strip("\n")
 
-    def generate_graphviz(self, filename: str, comment: str = "", view: str = True):
+    def generate_graphviz(self, filename: str, comment: str = "", view: bool = True):
         dot = self.generate_dots_graphviz(comment = comment)
         dot = self.fill_edges_graphviz(dot)
         dot.render(f"{filename}", view = view)
