@@ -148,10 +148,79 @@ def implies_reduce_l(ctx: ProofContext) -> List[ProofContext]:
             return new_ctx
     return []
 
-# hueristically ordered by priority
+"""
+One-shot
+"""
+def exists_reduce_l(ctx: ProofContext) -> List[ProofContext]:
+    l = ctx.l()
+
+    for statement in l:
+        if isinstance(statement, Exists) and not ctx.is_reduced(statement):
+            new_ctx = []
+            new_ctx.append(ProofContext({statement.expr.replace(statement.var, Atomic())}, set(), parent=ctx))
+            ctx.marked_redcued.add(statement)
+            return new_ctx
+
+    return []
+
+def forall_reduce_r(ctx: ProofContext) -> List[ProofContext]:
+    r = ctx.r()
+
+    for statement in r:
+        if isinstance(statement, Forall) and not ctx.is_reduced(statement):
+            new_ctx = []
+            new_ctx.append(ProofContext(set(), {statement.expr.replace(statement.var, Atomic())}, parent=ctx))
+            ctx.marked_redcued.add(statement)
+            return new_ctx
+
+    return []
+
+"""
+All-shot
+"""
+def exists_reduce_r(ctx: ProofContext) -> List[ProofContext]:
+    r = ctx.r()
+    l = ctx.l()
+
+    for statement in r:
+        if isinstance(statement, Exists) and not ctx.is_reduced(statement):
+            new_ctx = []
+            for p in r.union(l):
+                if isinstance(p, Predicate):
+                    new_ctx.append(ProofContext(set(), {statement.expr.replace(statement.var, p.var)}, parent=ctx))
+            # ctx.marked_redcued.add(statement)
+            return new_ctx
+
+    return []
+
+def forall_reduce_l(ctx: ProofContext) -> List[ProofContext]:
+    r = ctx.r()
+    l = ctx.l()
+
+    for statement in l:
+        if isinstance(statement, Forall) and not ctx.is_reduced(statement):
+            new_ctx = []
+            for p in r.union(l):
+                if isinstance(p, Predicate):
+                    new_ctx.append(ProofContext({statement.expr.replace(statement.var, p.var)}, set(), parent=ctx))
+            # ctx.marked_redcued.add(statement)
+            return new_ctx
+
+    return []
+
+# hueristically ordered by priority, in a cycle
 REDUCTION_RULES = [
     not_reduce_l, not_reduce_r, and_reduce_l, or_reduce_r, implies_reduce_r, # non-branching
-    and_reduce_r, implies_reduce_l, or_reduce_l # branching
+    and_reduce_r, implies_reduce_l, or_reduce_l, # branching
+    exists_reduce_l, forall_reduce_r,  # one-shot
+
+    forall_reduce_l,  # all-shot
+
+    not_reduce_l, not_reduce_r, and_reduce_l, or_reduce_r, implies_reduce_r, # non-branching
+    and_reduce_r, implies_reduce_l, or_reduce_l, # branching
+    exists_reduce_l, forall_reduce_r,
+
+    exists_reduce_r  # all-shot
 ]
 
 class ProofContext():
