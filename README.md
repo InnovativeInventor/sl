@@ -12,6 +12,9 @@ Ongoing/Planned:
 - [x] construct shallow embeddings of classical sentential logic (assume decidability)
 - [x] prove demorgan, double-negation elim, negated conditional are sound
 - [x] prove the composition of demorgan, double-negation, and negated conditional elim are sound (wrt the shallow embeddings) (i.e. "driving negations")
+- [x] visual exporter of the embedded two-sided proof system
+- [ ] optimization passes to obtain smaller, more concise proofs
+
 - [ ] prove that the implementation of "driving negations" results in only negated atomics (correctness)
 - [ ] embed [two-sided proof system](https://doi.org/10.5840/teachphil2019116101)
 - [ ] prove soundness and completeness of two-sided proof system
@@ -19,5 +22,4 @@ Ongoing/Planned:
 - [ ] prove soundness and completeness of natural deduction
 
 Considering:
-- [ ] LaTex exporter of the embedded two-sided proof system
 - [ ] Extract formally verified two-sided proof system as a calculator from Coq (and maybe expose as a web app)
