@@ -10,9 +10,7 @@ left = Implies(p, q)
 right = Implies(Not(q), Not(p))
 
 context = ProofContext({left}, {right})
-context.solve()
-
-assert context.solve()  # it's true!
+assert context.solve() # it's true!
 
 # Generate some figs:
 context.generate_graphviz("contrapositive", view = True) 

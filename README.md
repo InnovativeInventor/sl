@@ -1,4 +1,4 @@
-## SL
+## tree-logics
 This repo is an attempt to create various formally verified shallow embeddings of sentential logic in Coq, following along [PHIL 454](https://courses.illinois.edu/schedule/2022/spring/PHIL/454). 
 The goal is to build up (totally equivalent!) consistency and soundness proofs to explore various features of Coq.
 In particular, there will be some ltac automation (in the manner of [CPDT](https://mitpress.mit.edu/books/certified-programming-dependent-types)).

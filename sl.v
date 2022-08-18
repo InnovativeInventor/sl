@@ -191,7 +191,7 @@ split.
 - induction q; simpl; destruct size; try lia.
 Qed.
 
-Lemma size_greater_not_or (p q: SLPropSt): ((size p) < size (Not (And p q))) /\ ((size q) < size (Not (And p q))).
+Lemma size_greater_not_and (p q: SLPropSt): ((size p) < size (Not (And p q))) /\ ((size q) < size (Not (And p q))).
 Proof.
 split.
 - induction p; simpl; destruct size; try lia.
